@@ -3,11 +3,24 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"time"
 )
 
-type config struct {
+const (
+	ErrSelector  = ConfigErr("you must specify exactly one of -a or -c")
+	ErrStartTime = ConfigErr("start time must be positive")
+	ErrCommand   = ConfigErr("you must provide a command to run")
+)
+
+var noConfig = Config{}
+
+type ConfigErr string
+
+func (c ConfigErr) Error() string {
+	return string(c)
+}
+
+type Config struct {
 	id        string
 	selector  string
 	startTime time.Duration
@@ -15,52 +28,21 @@ type config struct {
 	args      []string
 }
 
-func loadConfig() config {
+func LoadConfig() (Config, error) {
 	app_id := flag.String("a", "", "'app_id' of window to manage")
 	class := flag.String("c", "", "'class' of window to manage")
 	startTime := flag.Int("t", 20, "How many ms to wait after starting app before trying to find its window")
-	flag.Usage = usage
+	flag.Usage = Usage
+
 	flag.Parse()
-
-	if (*app_id != "" && *class != "") || (*app_id == "" && *class == "") {
-		fmt.Fprint(flag.CommandLine.Output(), "ERROR: you must specify exactly one of -a or -c")
-		usage()
-		os.Exit(1)
+	if err := validateCommandLine(*app_id, *class, *startTime); err != nil {
+		return noConfig, err
 	}
 
-	if *startTime < 0 {
-		fmt.Fprint(flag.CommandLine.Output(), "ERROR: start time must be positive")
-		usage()
-		os.Exit(1)
-	}
-
-	if len(flag.Args()) < 1 {
-		fmt.Fprint(flag.CommandLine.Output(), "ERROR: you must provide a command to run")
-		usage()
-		os.Exit(1)
-	}
-
-	var id string
-	var selector string
-
-	if *app_id != "" {
-		selector = "app_id"
-		id = *app_id
-	} else {
-		selector = "class"
-		id = *class
-	}
-
-	return config{
-		id,
-		selector,
-		time.Duration(time.Duration(*startTime) * time.Millisecond),
-		flag.Arg(0),
-		flag.Args()[1:],
-	}
+	return newConfig(*app_id, *class, *startTime), nil
 }
 
-func usage() {
+func Usage() {
 	fmt.Fprintf(flag.CommandLine.Output(), `
 itch - Utility for managing multiple sway scratchpads
 
@@ -75,4 +57,41 @@ Usage:
 `)
 	flag.PrintDefaults()
 	fmt.Fprintln(flag.CommandLine.Output())
+}
+
+func validateCommandLine(app_id, class string, startTime int) error {
+	if (app_id != "" && class != "") || (app_id == "" && class == "") {
+		return ErrSelector
+	}
+
+	if startTime < 0 {
+		return ErrStartTime
+	}
+
+	if len(flag.Args()) < 1 {
+		return ErrCommand
+	}
+
+	return nil
+}
+
+func newConfig(app_id, class string, startTime int) Config {
+	var id string
+	var selector string
+
+	if app_id != "" {
+		selector = "app_id"
+		id = app_id
+	} else {
+		selector = "class"
+		id = class
+	}
+
+	return Config{
+		id,
+		selector,
+		time.Duration(time.Duration(startTime) * time.Millisecond),
+		flag.Arg(0),
+		flag.Args()[1:],
+	}
 }

@@ -9,14 +9,18 @@ import (
 )
 
 func main() {
-	config := loadConfig()
+	config, err := LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+		Usage()
+		os.Exit(1)
+	}
 
 	sway := exec.Command("swaymsg", "-t", "get_tree", "-r")
 
 	jsonQuery := fmt.Sprintf(".. | select(.%s? == \"%s\") | .focused", config.selector, config.id)
 	jq := exec.Command("jq", jsonQuery)
 
-	var err error
 	if jq.Stdin, err = sway.StdoutPipe(); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to pipe between swaymsg and jq:", err)
 		os.Exit(1)
