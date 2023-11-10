@@ -11,8 +11,14 @@ import (
 func main() {
 	fmt.Println("Hello")
 
-	appId := os.Args[1]
-	jsonQuery := fmt.Sprintf(".. | select(.app_id? == \"%s\") | .focused", appId)
+	var selector string
+	if os.Args[1] == "-a" {
+		selector = "app_id"
+	} else {
+		selector = "class"
+	}
+	id := os.Args[2]
+	jsonQuery := fmt.Sprintf(".. | select(.%s? == \"%s\") | .focused", selector, id)
 	fmt.Println("query = ", jsonQuery)
 
 	sway := exec.Command("swaymsg", "-t", "get_tree", "-r")
@@ -24,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var pipe io.ReadCloser
+	var pipe io.Reader
 	if pipe, err = jq.StdoutPipe(); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to connect pipe to jq:", err)
 		os.Exit(1)
@@ -57,37 +63,42 @@ func main() {
 	}
 
 	if len(result) == 0 {
-		fmt.Println("Start", appId)
-		nvim := exec.Command("foot", "-a", appId, "nvim", "-S", "~/.local/share/nvim/session/notes")
-		nvim.Stdin = os.Stdin
-		nvim.Stdout = os.Stdout
-		nvim.Stderr = os.Stderr
-		err = nvim.Start()
+		fmt.Println("Start", id)
+		var program *exec.Cmd
+		var startupTime time.Duration
+		if id == "notes" {
+			program = exec.Command("foot", "-a", id, "nvim", "-S", "~/.local/share/nvim/session/notes")
+			startupTime = time.Millisecond * 20
+		} else {
+			program = exec.Command("spotify")
+			startupTime = time.Millisecond * 375
+		}
+		err = program.Start()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Nvim failed to start:", err)
 			os.Exit(1)
 		}
-		err = nvim.Process.Release()
+		err = program.Process.Release()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Nvim failed to detach:", err)
 			os.Exit(1)
 		}
-		time.Sleep(time.Millisecond * 30)
+		time.Sleep(startupTime)
 	}
 	if string(result) == "true" {
-		fmt.Println("Hide", appId)
-		predicate := fmt.Sprintf("[app_id=%s]", appId)
+		fmt.Println("Hide", id)
+		predicate := fmt.Sprintf("[%s=%s]", selector, id)
 		sway2 := exec.Command("swaymsg", predicate, "scratchpad", "show")
 		if err = sway2.Run(); err != nil {
-			fmt.Printf("Failed to send %s to scratchpad: %s\n", appId, err)
+			fmt.Printf("Failed to send %s to scratchpad: %s\n", id, err)
 			os.Exit(1)
 		}
 	} else {
-		fmt.Println("Focus", appId)
-		predicate := fmt.Sprintf("[app_id=%s]", appId)
+		fmt.Println("Focus", selector, id)
+		predicate := fmt.Sprintf("[%s=%s]", selector, id)
 		sway2 := exec.Command("swaymsg", predicate, "focus")
 		if out, err := sway2.Output(); err != nil {
-			fmt.Printf("Failed to focus %s:\n\t%s\n\t%s\n", appId, out, err)
+			fmt.Printf("Failed to focus %s:\n\t%s\n\t%s\n", id, out, err)
 			os.Exit(1)
 		}
 	}
