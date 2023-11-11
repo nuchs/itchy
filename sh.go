@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
 )
 
-func pipeline(commands ...*exec.Cmd) (string, error) {
+func Pipeline(commands ...*exec.Cmd) (string, error) {
 	var tailPipe io.Reader
 	var err error
 	for _, cmd := range commands {
@@ -30,7 +29,7 @@ func pipeline(commands ...*exec.Cmd) (string, error) {
 
 	result, err := io.ReadAll(tailPipe)
 	if err != nil {
-		return "", fmt.Errorf("Failed to read from pipeline:", err)
+		return "", fmt.Errorf("Failed to read from pipeline: %s", err)
 	}
 
 	for _, cmd := range commands {
@@ -51,7 +50,7 @@ func StartApp(config Config) error {
 
 	err = program.Process.Release()
 	if err != nil {
-		fmt.Errorf("%s failed to detach: %s\n", config.command, err)
+		return fmt.Errorf("%s failed to detach: %s\n", config.command, err)
 	}
 
 	time.Sleep(config.startTime)

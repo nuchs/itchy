@@ -11,7 +11,7 @@ func main() {
 		handleError(err)
 	}
 
-	state, err := getWindowState(config)
+	state, err := GetWindowState(config)
 	if err != nil {
 		handleError(err)
 	}

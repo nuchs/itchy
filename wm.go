@@ -47,7 +47,6 @@ func jsonWindowSelector(selector, id string) string {
 }
 
 func HideWindow(config Config) {
-	fmt.Println("Hide", config.id)
 	predicate := fmt.Sprintf("[%s=%s]", config.selector, config.id)
 	sway2 := exec.Command("swaymsg", predicate, "scratchpad", "show")
 	if err := sway2.Run(); err != nil {
@@ -57,8 +56,6 @@ func HideWindow(config Config) {
 }
 
 func FocusWindow(config Config) {
-
-	fmt.Println("Focus", config.selector, config.id)
 	predicate := fmt.Sprintf("[%s=%s]", config.selector, config.id)
 	sway2 := exec.Command("swaymsg", predicate, "focus")
 	if out, err := sway2.Output(); err != nil {
@@ -67,11 +64,13 @@ func FocusWindow(config Config) {
 	}
 }
 
-func getWindowState(config Config) (WindowState, error) {
-
-	jsonWindowState := pipeline(
+func GetWindowState(config Config) (WindowState, error) {
+	jsonWindowState, err := Pipeline(
 		exec.Command("swaymsg", "-t", "get_tree", "-r"),
 		exec.Command("jq", jsonWindowSelector(config.selector, config.id)))
+	if err != nil {
+		return Unknown, err
+	}
 
 	state, err := parseWindowState(jsonWindowState)
 	if err != nil {
