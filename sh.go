@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func pipeline(commands ...*exec.Cmd) string {
+func pipeline(commands ...*exec.Cmd) (string, error) {
 	var tailPipe io.Reader
 	var err error
 	for _, cmd := range commands {
@@ -18,48 +18,43 @@ func pipeline(commands ...*exec.Cmd) string {
 		}
 
 		if tailPipe, err = cmd.StdoutPipe(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to pipe into %s: %s\n", cmd.String(), err)
-			os.Exit(1)
+			return "", fmt.Errorf("Failed to pipe into %s: %s\n", cmd.String(), err)
 		}
 	}
 
 	for _, cmd := range commands {
 		if err = cmd.Start(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to start %s: %s\n", cmd.String(), err)
-			os.Exit(1)
+			return "", fmt.Errorf("Failed to start %s: %s\n", cmd.String(), err)
 		}
 	}
 
 	result, err := io.ReadAll(tailPipe)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to read from pipeline:", err)
-		os.Exit(1)
+		return "", fmt.Errorf("Failed to read from pipeline:", err)
 	}
 
 	for _, cmd := range commands {
 		if err = cmd.Wait(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s failed to complete: %s\n", cmd.String(), err)
-			os.Exit(1)
+			return "", fmt.Errorf("%s failed to complete: %s\n", cmd.String(), err)
 		}
 	}
 
-	return strings.TrimSpace(string(result))
+	return strings.TrimSpace(string(result)), nil
 }
 
-func StartApp(config Config) {
-
-	fmt.Println("Start", config.id)
+func StartApp(config Config) error {
 	program := exec.Command(config.command, config.args...)
 	err := program.Start()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s failed to start: %s\n", config.command, err)
-		os.Exit(1)
+		return fmt.Errorf("%s failed to start: %s\n", config.command, err)
 	}
+
 	err = program.Process.Release()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s failed to detach: %s\n", config.command, err)
-		os.Exit(1)
+		fmt.Errorf("%s failed to detach: %s\n", config.command, err)
 	}
 
 	time.Sleep(config.startTime)
+
+	return nil
 }
