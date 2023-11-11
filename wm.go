@@ -46,22 +46,24 @@ func jsonWindowSelector(selector, id string) string {
 	return fmt.Sprintf(".. | select(%s.%s? == \"%s\") | .focused", query, selector, id)
 }
 
-func HideWindow(config Config) {
+func HideWindow(config Config) error {
 	predicate := fmt.Sprintf("[%s=%s]", config.selector, config.id)
 	sway2 := exec.Command("swaymsg", predicate, "scratchpad", "show")
 	if err := sway2.Run(); err != nil {
-		fmt.Printf("Failed to send %s to scratchpad: %s\n", config.id, err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to send %s to scratchpad: %s\n", config.id, err)
 	}
+
+	return nil
 }
 
-func FocusWindow(config Config) {
+func FocusWindow(config Config) error {
 	predicate := fmt.Sprintf("[%s=%s]", config.selector, config.id)
 	sway2 := exec.Command("swaymsg", predicate, "focus")
 	if out, err := sway2.Output(); err != nil {
-		fmt.Printf("Failed to focus %s:\n\t%s\n\t%s\n", config.id, out, err)
-		os.Exit(1)
+		return fmt.Errorf("Failed to focus %s:\n\t%s\n\t%s\n", config.id, out, err)
 	}
+
+	return nil
 }
 
 func GetWindowState(config Config) (WindowState, error) {

@@ -21,11 +21,20 @@ func main() {
 		if err = StartApp(config); err != nil {
 			handleError(err)
 		}
-		FocusWindow(config)
+		if err = FocusWindow(config); err != nil {
+			handleError(err)
+		}
+
 	case Unfocused:
-		FocusWindow(config)
+		if err = FocusWindow(config); err != nil {
+			handleError(err)
+		}
+
 	case Focused:
-		HideWindow(config)
+		if err = HideWindow(config); err != nil {
+			handleError(err)
+		}
+
 	default:
 		handleError(fmt.Errorf("ERROR: Unable to determine state for %s\n", config.id))
 	}
